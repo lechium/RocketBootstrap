@@ -88,7 +88,11 @@ static kern_return_t rocketbootstrap_look_up_with_timeout(mach_port_t bp, const 
 	}
 	// Ask our service running inside of the com.apple.ReportCrash.SimulateCrash job
 	mach_port_t servicesPort = MACH_PORT_NULL;
-	kern_return_t err = bootstrap_look_up(bp, "com.apple.ReportCrash.SimulateCrash", &servicesPort);
+	char *hookTarget = "com.apple.ReportCrash.SimulateCrash";
+	if (kCFCoreFoundationVersionNumber >= 1740.0){
+	    hookTarget = "com.apple.tccd";
+	}
+	kern_return_t err = bootstrap_look_up(bp, hookTarget, &servicesPort);
 	if (err) {
 #ifdef DEBUG
 		NSLog(@"RocketBootstrap: = %lld (failed to lookup com.apple.ReportCrash.SimulateCrash)", (unsigned long long)err);
@@ -378,6 +382,13 @@ static mach_msg_return_t $mach_msg_server_once(boolean_t (*demux)(mach_msg_heade
 	return result;
 }
 
+
+int (*sandbox_init_og)();
+int sandbox_init_us(){
+    NSLog(@"RocketBootstrap: sandbox_init()");
+    return 0;
+}
+
 #ifdef __clang__
 
 static void *interceptedConnection;
@@ -388,7 +399,8 @@ static void *$xpc_connection_create_mach_service(const char *name, dispatch_queu
 #ifdef DEBUG
 	NSLog(@"RocketBootstrap: xpc_connection_create_mach_service(%s, %p, %lld)", name, targetq, (unsigned long long)flags);
 #endif
-	if (name && strcmp(name, "com.apple.ReportCrash.SimulateCrash") == 0) {
+	
+	if ((name && strcmp(name, "com.apple.ReportCrash.SimulateCrash") == 0) || (name && strcmp(name, "com.apple.tccd") == 0)) {
 		void *result = _xpc_connection_create_mach_service(name, targetq, flags);
 		interceptedConnection = result;
 		return result;
@@ -557,25 +569,10 @@ static void process_terminate_callback(CFFileDescriptorRef fd, CFOptionFlags cal
 static void SanityCheckNotificationCallback(CFUserNotificationRef userNotification, CFOptionFlags responseFlags)
 {
 }
-
-%ctor
-{
-	%init();
-	// Attach rockets when in the com.apple.ReportCrash.SimulateCrash job
-	// (can't check in using the launchd APIs because it hates more than one checkin; this will do)
-	const char **_argv = *_NSGetArgv();
-	if (strcmp(_argv[0], "/System/Library/CoreServices/ReportCrash") == 0 && _argv[1]) {
-		if (strcmp(_argv[1], "-f") == 0) {
+static void xpc_init(){
 			isDaemon = YES;
 #ifdef DEBUG
-			NSLog(@"RocketBootstrap: Initializing ReportCrash using mach_msg_server");
-#endif
-			MSHookFunction(mach_msg_server_once, $mach_msg_server_once, (void **)&_mach_msg_server_once);
-#ifdef __clang__
-		} else if (strcmp(_argv[1], "com.apple.ReportCrash.SimulateCrash") == 0) {
-			isDaemon = YES;
-#ifdef DEBUG
-			NSLog(@"RocketBootstrap: Initializing ReportCrash using XPC");
+			NSLog(@"RocketBootstrap: Initializing ReportCrash / TCC using XPC");
 #endif
 			MSImageRef libxpc = MSGetImageByName("/usr/lib/system/libxpc.dylib");
 			if (libxpc) {
@@ -600,11 +597,42 @@ static void SanityCheckNotificationCallback(CFUserNotificationRef userNotificati
 				NSLog(@"RocketBootstrap: Could not find libxpc.dylib image!");
 #endif
 			}
+		}
+        
+%ctor
+{
+	%init();
+	// Attach rockets when in the com.apple.ReportCrash.SimulateCrash job
+	// (can't check in using the launchd APIs because it hates more than one checkin; this will do)
+	const char **_argv = *_NSGetArgv();
+	char *hookTarget = "com.apple.ReportCrash.SimulateCrash";
+	BOOL fourteenPlus = false;
+	if (kCFCoreFoundationVersionNumber >= 1740.0){
+        NSLog(@"RocketBootstrap: 14+");
+	    hookTarget = "com.apple.tccd";
+	    fourteenPlus = true;
+	}
+        if (strcmp(_argv[0], "/System/Library/PrivateFrameworks/TCC.framework/tccd") == 0 && fourteenPlus){
+		isDaemon = YES;
+		xpc_init();
+        MSHookFunction(sandbox_init, (void*)sandbox_init_us, (void**)&sandbox_init_og);
+        
+	} else if (strcmp(_argv[0], "/System/Library/CoreServices/ReportCrash") == 0 && _argv[1]) {
+		if (strcmp(_argv[1], "-f") == 0) {
+			isDaemon = YES;
+#ifdef DEBUG
+			NSLog(@"RocketBootstrap: Initializing ReportCrash using mach_msg_server");
+#endif
+			MSHookFunction(mach_msg_server_once, $mach_msg_server_once, (void **)&_mach_msg_server_once);
+#ifdef __clang__
+		} else if (strcmp(_argv[1], "com.apple.ReportCrash.SimulateCrash") == 0) {
+            xpc_init();
 #endif
 		}
-	} else if (strcmp(argv[0], "/System/Library/CoreServices/SpringBoard.app/SpringBoard") == 0) {
+        
+	} else if (strcmp(argv[0], "/Applications/PineBoard.app/PineBoard") == 0) {
 #ifdef DEBUG
-		NSLog(@"RocketBootstrap: Initializing SpringBoard");
+		NSLog(@"RocketBootstrap: Initializing PineBoard");
 #endif
 		if (kCFCoreFoundationVersionNumber < 847.20) {
 			return;
@@ -614,7 +642,7 @@ static void SanityCheckNotificationCallback(CFUserNotificationRef userNotificati
 		mach_port_t self = mach_task_self();
 		task_get_bootstrap_port(self, &bootstrap);
 		mach_port_t servicesPort = MACH_PORT_NULL;
-		kern_return_t err = bootstrap_look_up(bootstrap, "com.apple.ReportCrash.SimulateCrash", &servicesPort);
+		kern_return_t err = bootstrap_look_up(bootstrap, hookTarget, &servicesPort);
 		//bool has_simulate_crash;
 		if (err) {
 			//has_simulate_crash = false;
@@ -633,11 +661,17 @@ static void SanityCheckNotificationCallback(CFUserNotificationRef userNotificati
 				kCFUserNotificationAlertMessageKey,
 				kCFUserNotificationDefaultButtonTitleKey,
 			};
+		
+			CFStringRef errorMessage = CFSTR("RocketBootstrap has detected that your SimulateCrash crash reporting daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap.");
+			if (kCFCoreFoundationVersionNumber >= 1740.0){
+			bruh = CFSTR("RocketBootstrap has detected that your Transparency, Consent, and Control daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap.");
+			}
 			const CFTypeRef valuesCrash[] = {
 				CFSTR("System files missing!"),
-				CFSTR("RocketBootstrap has detected that your SimulateCrash crash reporting daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap."),
-				CFSTR("OK"),
+				errorMessage,
+                CFSTR("OK"),
 			};
+
 			/*const CFTypeRef valuesRocket[] = {
 				CFSTR("System files missing!"),
 				CFSTR("RocketBootstrap has detected that your rocketbootstrap daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap."),

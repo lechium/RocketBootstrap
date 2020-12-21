@@ -1,8 +1,13 @@
+#target = appletv
+target = iphone:11.2:11.2
+GO_EASY_ON_ME = 1
+IPHONE_ARCHS = arm64
 LIBRARY_NAME = librocketbootstrap
 librocketbootstrap_FILES = Tweak.x Shims.x
 librocketbootstrap_LIBRARIES = substrate
 librocketbootstrap_FRAMEWORKS = Foundation
 librocketbootstrap_USE_MODULES = 0
+librocketbootstrap_CFLAGS += -Idefaultheaders/include
 
 TOOL_NAME = rocketd _rocketd_reenable
 rocketd_FILES = rocketd.c
@@ -20,39 +25,39 @@ _rocketd_reenable_CODESIGN_FLAGS = -Sentitlements.xml
 ADDITIONAL_CFLAGS = -std=c99 -Ioverlayheaders
 
 # Support targeting 3.0 in packaged builds, but allow testing packages/builds to be missing support for old iOS versions
-XCODE4_PATH ?= /Applications/Xcode_Legacy.app
-XCODE6_PATH ?= /Volumes/Xcode/Xcode.app
-XCODE9_PATH ?= /Volumes/Xcode_9.4.1/Xcode.app
+#XCODE4_PATH ?= /Applications/Xcode_Legacy.app
+#XCODE6_PATH ?= /Volumes/Xcode/Xcode.app
+XCODE9_PATH ?= /Applications/Xcode.app
 
-ifeq ($(wildcard $(XCODE4_PATH)/.*),)
-ADDITIONAL_CFLAGS += -Idefaultheaders
-IPHONE_ARCHS = armv7 armv7s arm64 arm64e
-TARGET_IPHONEOS_DEPLOYMENT_VERSION = 8.4
-ifeq ($(FINALPACKAGE),1)
-$(error Building final package requires a legacy Xcode install!)
-endif
-else
-armv6_CFLAGS += -Ifullheaders
-armv7_CFLAGS += -Ifullheaders
-armv7s_CFLAGS += -Ifullheaders
+#ifeq ($(wildcard $(XCODE4_PATH)/.*),)
+#ADDITIONAL_CFLAGS += -Idefaultheaders
+#IPHONE_ARCHS = armv7 armv7s arm64 arm64e
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION = 8.4
+#ifeq ($(FINALPACKAGE),1)
+#$(error Building final package requires a legacy Xcode install!)
+#endif
+#else
+#armv6_CFLAGS += -Ifullheaders
+#armv7_CFLAGS += -Ifullheaders
+#armv7s_CFLAGS += -Ifullheaders
 arm64_CFLAGS += -Idefaultheaders
-arm64e_CFLAGS += -Idefaultheaders
-rocketd_IPHONE_ARCHS = armv6 arm64
-_rocketd_reenable_IPHONE_ARCHS = armv6 arm64
-IPHONE_ARCHS = armv6 armv7 armv7s arm64 arm64e
-SDKVERSION_armv6 = 5.1
-INCLUDE_SDKVERSION_armv6 = 8.4
-TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv6 = 3.0
-TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv7 = 4.0
-TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv7s = 6.0
-TARGET_IPHONEOS_DEPLOYMENT_VERSION_arm64 = 7.0
-TARGET_IPHONEOS_DEPLOYMENT_VERSION_arm64e = 12.0
-TARGET_IPHONEOS_DEPLOYMENT_VERSION = 9.0
-THEOS_PLATFORM_SDK_ROOT_armv6 = $(XCODE4_PATH)/Contents/Developer
-THEOS_PLATFORM_SDK_ROOT_armv7 = $(XCODE6_PATH)/Contents/Developer
-THEOS_PLATFORM_SDK_ROOT_armv7s = $(XCODE6_PATH)/Contents/Developer
+#arm64e_CFLAGS += -Idefaultheaders
+#rocketd_IPHONE_ARCHS = armv6 arm64
+#_rocketd_reenable_IPHONE_ARCHS = armv6 arm64
+#IPHONE_ARCHS = armv6 armv7 armv7s arm64 arm64e
+#SDKVERSION_armv6 = 5.1
+#INCLUDE_SDKVERSION_armv6 = 8.4
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv6 = 3.0
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv7 = 4.0
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION_armv7s = 6.0
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION_arm64 = 7.0
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION_arm64e = 12.0
+#TARGET_IPHONEOS_DEPLOYMENT_VERSION = 9.0
+#THEOS_PLATFORM_SDK_ROOT_armv6 = $(XCODE4_PATH)/Contents/Developer
+#THEOS_PLATFORM_SDK_ROOT_armv7 = $(XCODE6_PATH)/Contents/Developer
+#THEOS_PLATFORM_SDK_ROOT_armv7s = $(XCODE6_PATH)/Contents/Developer
 THEOS_PLATFORM_SDK_ROOT_arm64 = $(XCODE9_PATH)/Contents/Developer
-endif
+#endif
 
 include framework/makefiles/common.mk
 include framework/makefiles/library.mk

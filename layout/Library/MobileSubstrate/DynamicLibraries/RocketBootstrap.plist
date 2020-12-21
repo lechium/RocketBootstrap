@@ -7,10 +7,11 @@
 		<key>Executables</key>
 		<array>
 			<string>ReportCrash</string>
+			<string>tccd</string>
 		</array>
 		<key>CoreFoundationVersion</key>
 		<array>
-			<real>800</real>
+			<integer>800</integer>
 		</array>
 	</dict>
 </dict>

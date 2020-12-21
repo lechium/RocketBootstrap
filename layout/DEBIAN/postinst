@@ -2,7 +2,9 @@
 chown root:wheel /Library/LaunchDaemons/com.rpetrich.rocketbootstrapd.plist
 launchctl load /Library/LaunchDaemons/com.rpetrich.rocketbootstrapd.plist || true
 launchctl stop com.apple.ReportCrash.SimulateCrash || true
+launchctl stop com.apple.tccd || true
 mv /System/Library/LaunchDaemons{BAK,}/com.apple.ReportCrash.SimulateCrash.plist 2> /dev/null || true
 launchctl load /System/Library/LaunchDaemons/com.apple.ReportCrash.SimulateCrash.plist 2> /dev/null || true
+launchctl load /System/Library/LaunchDaemons/com.apple.tccd.plist 2> /dev/null || true
 chown root:wheel /usr/libexec/_rocketd_reenable
 chmod +s /usr/libexec/_rocketd_reenable
