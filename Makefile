@@ -1,5 +1,6 @@
 #target = appletv
 target = iphone:11.2:11.2
+PACKAGE_VERSION = 1.0.10~beta2
 GO_EASY_ON_ME = 1
 IPHONE_ARCHS = arm64
 LIBRARY_NAME = librocketbootstrap

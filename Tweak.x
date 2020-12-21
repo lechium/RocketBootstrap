@@ -664,7 +664,7 @@ static void xpc_init(){
 
 	    CFStringRef errorMessage = CFSTR("RocketBootstrap has detected that your SimulateCrash crash reporting daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap.");
 	    if (kCFCoreFoundationVersionNumber >= 1740.0){
-		bruh = CFSTR("RocketBootstrap has detected that your Transparency, Consent, and Control daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap.");
+		errorMessage = CFSTR("RocketBootstrap has detected that your Transparency, Consent, and Control daemon is missing or disabled.\nThis daemon is required for proper operation of packages that depend on RocketBootstrap.");
 	    }
 	    const CFTypeRef valuesCrash[] = {
 		CFSTR("System files missing!"),
